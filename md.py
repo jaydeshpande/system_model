@@ -6,13 +6,16 @@ from calculate_psat import *
 from calculated_diffusivity import *
 from calculate_activity_factor import *
 #---------------------------
-L=0.05 # Length of the module 
-dx=0.02 # Flow channel width 
-B=0.05 # Height of the module
-dm=0.000250 # m Thickness of membrane 
-da=0.001 # m Thickness of airgap
-dp=0.003 # m thickness of coolant plate
-salinity=25 # g/kg salinity in the feed
+L=0.07 # Length of the module 
+dx=0.022 # Flow channel width 
+B=0.006 # Height of the module
+dm=0.000160 # m Thickness of membrane 
+da=0.003 # m Thickness of airgap
+dp=0.0015 # m thickness of coolant plate
+salinity=0.075 # g/kg salinity in the feed
+#---------------------------
+# Hydraulic diameter, Dh
+Dh = (2*dx*B)/(dx+B)
 #---------------------------
 # Calculate the membrane diffusivity 
 #---------------------------
@@ -29,10 +32,14 @@ K_p1=diff*eta*Mv/(dm*xeta*R)
 # Rep=float(input('\n Enter Permeate Side Reynolds Number: ')) # Reynolds number on permeate/coolant
 # Ts=float(input('\n Enter Bulk Feed Temperature: ')) # Bulk temperature on feed
 # Tp=float(input('\n Enter Bulk Coolant Temperature: ')) # Bulk tempereature on permeate/coolant
-Res = 100.0
-Rep = 100.0
+# code test section - verification values of mass flow rates
+massin = 0.05/3
+vin = 0.05/(1000.0*dx*B)
+Re = 1000.0*vin*Dh/0.001002
+Res = Re
+Rep = Re
 Ts = 273.0 + 80.0
-Tp = 273.0 + 20.0
+Tp = 273.0 + 30.0
 #---------------------------
 # Define constants 
 #---------------------------
@@ -43,28 +50,38 @@ Mus=0.000355 # Ns/m2 Dynamic viscosity of water on feed side
 Mup=0.001002 # Ns/m2 Dynamic viscosity of water on permeate/coolant side 
 km=0.25 # W/m-k Conductivity of the membrane material -- PTFE
 ka=0.025 # W/m-K conductivity of air
-kc=385.0 # W/m-K conductivity of the coolant plate -- copper 
+kc=180.0 # W/m-K conductivity of the coolant plate -- copper 
 #---------------------------
 # Calculate non-dimensional groups 
 #---------------------------
 Prs=Mus*Cp/Kw # Prandtl number on feed
 Prp=Mup*Cp/Kw # Prandtl number on permeate/coolant 
-Nus=0.664*sqrt(Res)*(Prs**(1.0/3.0)) # Nusselt number on feed
-Nup=0.664*sqrt(Rep)*(Prp**(1.0/3.0)) # Nusselt number on coolant 
+#Nus=0.664*sqrt(Res)*(Prs**(1.0/3.0)) # Nusselt number on feed
+#Nup=0.664*sqrt(Rep)*(Prp**(1.0/3.0)) # Nusselt number on coolant 
+# test Nu values
+if (Re>4000):
+        Nus = 0.023 *(Res**0.8)*(Prs**0.33)*((2*Mus/(Mus+Mup))**0.14)
+        Nup = 0.023 *(Rep**0.8)*(Prp**0.33)*((2*Mup/(Mus+Mup))**0.14)
+else:
+        Nus = 1.86*(Res*Prs*Dh/L)**0.33
+        Nup = 1.86*(Rep*Prp*Dh/L)**0.33
+
 #---------------------------
 # Calcualte derived quantities 
 #---------------------------
-hs=Kw*Nus/L # W/m2-K heat transfer coefficient on feed-membrane interface 
-hp=Kw*Nup/L # W/m2-K heat transfer coefficient on coolant-membrane or coolant-plate interface
-vfin=Res/(1000.0*L)
-vpin=Rep/(1000.0*L)
+hs=Kw*Nus/Dh # W/m2-K heat transfer coefficient on feed-membrane interface 
+hp=Kw*Nup/Dh # W/m2-K heat transfer coefficient on coolant-membrane or coolant-plate interface
+vfin=Mup*Res/(1000.0*Dh)
+vpin=Mup*Rep/(1000.0*Dh)
 mfin=1000.0*dx*B*vfin
 mpin=1000.0*dx*B*vpin
-K_mem = ((1-eta)*km) + (eta*ka)
+K_mem = ((eta/ka)+((1-eta)/km))**(-1)
+print hs, hp, (da/K_mem)
+
 #---------------------------
 # Calculation for DCMD
 #---------------------------
-membrane_area = B*L
+membrane_area = dx*L
 resistance_dcmd=(1/hs)+(dm/K_mem)+(1/hp)
 Q_dcmd=(Ts-Tp)/(resistance_dcmd)
 T_dcmd=[Ts, Ts-(Q_dcmd/hs), Ts-(Q_dcmd/hs)-(Q_dcmd*dm/km), Tp]
@@ -78,19 +95,20 @@ tperout=(1.0/mdcmdr)*((Q_dcmd/Cp)+(mfin*Tp))
 #---------------------------
 # Calculation for AGMD
 #---------------------------
-resistance_agmd=(1/hs)+(dm/K_mem)+(da/ka)+(dp/kc)+(1/hp)
+membrane_area = L*dx
+resistance_agmd=(1/hs)+(dm/K_mem)+(da/ka)+(1/hp)
 Q_agmd=(Ts-Tp)/(resistance_agmd)
 T_agmd=[Ts, Ts-(Q_agmd/hs), 
         Ts-(Q_agmd/hs)-(Q_agmd*dm/K_mem), 
         Ts-(Q_agmd/hs)-(Q_agmd*dm/K_mem)-(Q_agmd*da/ka), 
-        Ts-(Q_agmd/hs)-(Q_agmd*dm/K_mem)-(Q_agmd*da/ka)-(Q_agmd*dp/kc), 
-        Ts-(Q_agmd/hs)-(Q_agmd*dm/K_mem)-(Q_agmd*da/ka)-(Q_agmd*dp/kc)-(Q_agmd/hp), 
+        Ts-(Q_agmd/hs)-(Q_agmd*dm/K_mem)-(Q_agmd*da/ka)-(Q_agmd/hp), 
         Tp]
 x_agmd=[0, dx, dx+dm, dx+dm+da, dx+dm+da+(dp/2), dx+dm+da+dp, dx+dm+da+dp+dx]
 permeability = calculate_diffusivity(T_dcmd[1],T_dcmd[2],da)
 m_agmd=permeability*((activity_factor*calculate_psat(T_agmd[1]))-calculate_psat(T_agmd[2]))
 rr_agmd=100.0*m_agmd*membrane_area/mfin 
-print rr_dcmd, rr_agmd, Q_dcmd, Q_agmd
+
+print 3600*m_agmd, T_agmd
 # #---------------------------
 # # Calculation for CGMD
 # #---------------------------
