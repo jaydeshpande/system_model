@@ -33,25 +33,26 @@ K_p1=diff*eta*Mv/(dm*xeta*R)
 # Ts=float(input('\n Enter Bulk Feed Temperature: ')) # Bulk temperature on feed
 # Tp=float(input('\n Enter Bulk Coolant Temperature: ')) # Bulk tempereature on permeate/coolant
 # code test section - verification values of mass flow rates
-massin = 0.05/3
-vin = 0.05/(1000.0*dx*B)
-Re = 1000.0*vin*Dh/0.001002
-Res = Re
-Rep = Re
-Ts = 273.0 + 80.0
-Tp = 273.0 + 30.0
+
+Ts = 40.0
+Tp = 30.0
 #---------------------------
 # Define constants 
 #---------------------------
 porosity=0.8 # porosity of the membrane 
 Kw=0.6 # W/m-K Thermal conductivity of water 
 Cp=4.1785e03 # J/kg-K  Specific heat of water 
-Mus=0.000355 # Ns/m2 Dynamic viscosity of water on feed side 
-Mup=0.001002 # Ns/m2 Dynamic viscosity of water on permeate/coolant side 
+Mus= (4e-12*Ts**6) - (2e-09*Ts**5) + (3e-07*Ts**4) - (2e-05*Ts**3) + (0.0014*Ts**2) - (0.0602*Ts + 1.7869) # Ns/m2 Dynamic viscosity of water on feed side 
+Mup= (4e-12*Tp**6) - (2e-09*Tp**5) + (3e-07*Tp**4) - (2e-05*Tp**3) + (0.0014*Tp**2) - (0.0602*Tp + 1.7869) # Ns/m2 Dynamic viscosity of water on permeate/coolant side 
 km=0.25 # W/m-k Conductivity of the membrane material -- PTFE
 ka=0.025 # W/m-K conductivity of air
 kc=180.0 # W/m-K conductivity of the coolant plate -- copper 
 #---------------------------
+massin = 0.05
+vin = 0.05/(1000.0*dx*B)
+Res = 1000.0*vin*Dh/Mus
+Rep = 1000.0*vin*Dh/Mup
+
 # Calculate non-dimensional groups 
 #---------------------------
 Prs=Mus*Cp/Kw # Prandtl number on feed
@@ -59,11 +60,14 @@ Prp=Mup*Cp/Kw # Prandtl number on permeate/coolant
 #Nus=0.664*sqrt(Res)*(Prs**(1.0/3.0)) # Nusselt number on feed
 #Nup=0.664*sqrt(Rep)*(Prp**(1.0/3.0)) # Nusselt number on coolant 
 # test Nu values
-if (Re>4000):
+if (Res>4000):
         Nus = 0.023 *(Res**0.8)*(Prs**0.33)*((2*Mus/(Mus+Mup))**0.14)
-        Nup = 0.023 *(Rep**0.8)*(Prp**0.33)*((2*Mup/(Mus+Mup))**0.14)
 else:
         Nus = 1.86*(Res*Prs*Dh/L)**0.33
+
+if (Rep>4000):
+        Nup = 0.023 *(Rep**0.8)*(Prp**0.33)*((2*Mup/(Mus+Mup))**0.14)
+else:
         Nup = 1.86*(Rep*Prp*Dh/L)**0.33
 
 #---------------------------
@@ -108,7 +112,7 @@ permeability = calculate_diffusivity(T_dcmd[1],T_dcmd[2],da)
 m_agmd=permeability*((activity_factor*calculate_psat(T_agmd[1]))-calculate_psat(T_agmd[2]))
 rr_agmd=100.0*m_agmd*membrane_area/mfin 
 
-print 3600*m_agmd, T_agmd
+print 3600*m_agmd, rr_agmd
 # #---------------------------
 # # Calculation for CGMD
 # #---------------------------
